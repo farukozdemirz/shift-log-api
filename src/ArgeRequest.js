@@ -3,13 +3,8 @@ const axios = require('axios');
 const FormData = require('form-data');
 
 class ArgeRequest {
-  constructor(baseUrl) {
-    this.baseUrl = baseUrl;
-  }
-
-  async post(path, data) {
-    const url = `${this.baseUrl}${path}`;
-
+  static async post(path, data) {
+    const url = `${process.env.API_URL}${path}`;
     try {
       const formData = new FormData();
 
@@ -35,7 +30,7 @@ class ArgeRequest {
     }
   }
 
-  async get(path) {
+  static async get(path) {
     const url = `${this.baseUrl}${path}`;
 
     try {

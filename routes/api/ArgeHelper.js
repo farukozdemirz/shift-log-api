@@ -3,11 +3,14 @@ const puppeteer = require('puppeteer');
 const ArgeRequest = require('../../src/ArgeRequest.js');
 const WorkingHours = require('../../models/WorkingHours');
 
-const request = new ArgeRequest(process.env.API_URL);
-
-class ArgeHelper {
+class ArgeHelper extends ArgeRequest {
   constructor() {
+    super();
     this.user = {};
+    this.workingHourData = {
+      checkIn: {},
+      checkOut: {},
+    };
   }
 
   static setUser(user) {
@@ -43,8 +46,7 @@ class ArgeHelper {
         Sifre: password,
         tokenInfo: tokenInfo,
       };
-      const req = request.post('/Account/LogOn', requestBody);
-      // const req = request.post('/Home/Logout', requestBody);
+      const req = this.post('/Account/LogOn', requestBody);
       return req;
     } catch (error) {
       throw new Error(error.message);
@@ -67,6 +69,7 @@ class ArgeHelper {
     if (error2.length > 0) {
       return error2[1].trim();
     }
+
     if (error3.length > 0) {
       return error3[1].trim();
     }
@@ -74,7 +77,7 @@ class ArgeHelper {
     return false;
   }
 
-  static convertCheckinToCheckOut(workingHoursData, date, optimizeData) {
+  static convertCheckinToCheckOut(workingHoursData, date) {
     const lastCheckIn = workingHoursData.reduce((acc, current) => {
       const splitItem = current.cell[5].split('T');
       if (splitItem[0] === date) {
@@ -83,17 +86,12 @@ class ArgeHelper {
       }
       return acc;
     }, '');
-    // eslint-disable-next-line no-param-reassign
-    optimizeData.checkOut[date] = lastCheckIn;
+
+    this.workingHourData.checkOut[date] = lastCheckIn;
     return lastCheckIn;
   }
 
   static formatDateObject(workingHoursData) {
-    const optimizeData = {
-      checkIn: {},
-      checkOut: {},
-    };
-
     workingHoursData.forEach(element => {
       const date = element.cell[5].split('T')[0];
       const time = element.cell[5];
@@ -104,24 +102,23 @@ class ArgeHelper {
         C: 'checkOut',
       }[type];
 
-      if (type === 'G' && !optimizeData.checkIn[date]) {
-        optimizeData[checkType][date] = time;
+      if (type === 'G' && !this.workingHourData.checkIn[date]) {
+        this.workingHourData[checkType][date] = time;
       } else if (type === 'C') {
-        optimizeData[checkType][date] = time;
+        this.workingHourData[checkType][date] = time;
       }
     });
 
-    const gecisler = Object.entries(optimizeData.checkIn).map(([date, checkIn]) => {
-      const checkoutDate = optimizeData.checkOut[date];
-      const checkInDate = optimizeData.checkIn[date];
-      const checkout =
-        checkoutDate || this.convertCheckinToCheckOut(workingHoursData, date, optimizeData);
+    const gecisler = Object.entries(this.workingHourData.checkIn).map(([date, checkIn]) => {
+      const checkoutDate = this.workingHourData.checkOut[date];
+      const checkInDate = this.workingHourData.checkIn[date];
+      const checkout = checkoutDate || this.convertCheckinToCheckOut(workingHoursData, date);
 
       return {
         date,
         checkIn: checkIn.split('T')[1],
         checkOut: checkout.split('T')[1],
-        workingHour: this.calculateWorkingHours(checkInDate, optimizeData.checkOut[date]),
+        workingHour: this.calculateWorkingHours(checkInDate, this.workingHourData.checkOut[date]),
       };
     });
 
@@ -162,7 +159,7 @@ class ArgeHelper {
         Donem_Id: donem,
         Personel_Id: process.env.Personel_Id,
       };
-      const response = await request.post(
+      const response = await this.post(
         '/Personel/PersonelGirisCikis/PersonelPdksGirisCikisListe',
         requestBody
       );
@@ -177,13 +174,51 @@ class ArgeHelper {
       const donemData = ['1269', '1270', '1271'];
       const promises = donemData.map(donem => this.getWorkingHoursFromArgePortal(donem));
       const results = await Promise.all(promises);
-      console.log('results', results);
-
       const workingHour = results.reduce((acc, cur) => {
         acc.push(...cur);
         return acc;
       }, []);
+      this.setWorkingHourToDb(workingHour);
+      return workingHour;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  }
 
+  static async setMissingWorkingHour(getWorkingHour) {
+    const lastWorkingHours = await this.getWorkingHoursFromArgePortal(process.env.Donem_Id);
+    const missingWorkingHours = lastWorkingHours.filter(
+      item => new Date(item.date) > new Date(getWorkingHour.date)
+    );
+    if (missingWorkingHours.length > 0) {
+      this.setWorkingHourToDb(missingWorkingHours);
+    }
+    return lastWorkingHours;
+  }
+
+  static async checkWorkingHour() {
+    this.workingHourData = {
+      checkIn: {},
+      checkOut: {},
+    };
+    try {
+      const getWorkingHour = await WorkingHours.findOne({
+        personelId: this.user.personelId,
+      }).sort('-date');
+      const actionType = getWorkingHour ? 'update' : 'create';
+      const actions = {
+        create: this.setAllWorkingHour,
+        update: this.setMissingWorkingHour,
+      };
+      actions[actionType](getWorkingHour);
+      return true;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  }
+
+  static async setWorkingHourToDb(workingHour) {
+    try {
       workingHour.forEach(async data => {
         const hour = new WorkingHours({
           personelId: this.user.personelId,
@@ -194,25 +229,6 @@ class ArgeHelper {
         });
         await hour.save();
       });
-
-      return workingHour;
-    } catch (error) {
-      throw new Error(error.message);
-    }
-  }
-
-  static async checkWorkingHour() {
-    try {
-      const getWorkingHour = await WorkingHours.findOne({
-        personelId: this.user.personelId,
-      }).sort('-date');
-      let workingHourData = [];
-
-      if (!getWorkingHour) {
-        workingHourData = this.setAllWorkingHour();
-      }
-
-      return workingHourData;
     } catch (error) {
       throw new Error(error.message);
     }
@@ -221,7 +237,7 @@ class ArgeHelper {
   static async Logout() {
     try {
       const requestBody = {};
-      const req = request.post('/Home/Logout', requestBody);
+      const req = this.post('/Home/Logout', requestBody);
       this.setUser({});
       return req;
     } catch (error) {

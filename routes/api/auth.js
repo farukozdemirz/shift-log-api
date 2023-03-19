@@ -44,12 +44,12 @@ router.post('/login', async (req, res) => {
       response.status = false;
       response.message = decodeURIComponent(errorMessage);
       res.status(400).send(response);
-    } else {
-      // if user is valid, save user to db and generate token
-      const userActions = await setUserAndToken(req.body);
-      const checkWorkingHour = await ArgeHelper.checkWorkingHour(userActions.user);
-      res.status(200).send(checkWorkingHour);
+      return;
     }
+    // if user is valid, save user to db and generate token
+    const userActions = await setUserAndToken(req.body);
+    await ArgeHelper.checkWorkingHour(userActions.user);
+    res.status(200).send(userActions);
   } catch (error) {
     res.status(400).send(error.message);
   }
