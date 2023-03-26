@@ -1,31 +1,26 @@
 const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
 const { Schema } = mongoose;
 
 const userSchema = Schema(
   {
+    userId: { type: Number, unique: true },
     name: String,
-    personelId: { type: String, unique: true, required: true },
     email: { type: String, unique: true, required: true },
     tokens: [{ token: { type: String, required: true } }],
   },
   { timestamps: true }
 );
-
-/**
- * personelId hash middleware.
- */
 userSchema.pre('save', async function(next) {
-  const user = this;
-  if (user.isModified('personelId')) {
-    const salt = await bcrypt.genSalt(10);
-    user.personelId = await bcrypt.hash(user.personelId, salt);
+  const doc = this;
+  if (doc.isNew) {
+    const lastUser = await doc.constructor.findOne({}, {}, { sort: { id: -1 } });
+    const newId = lastUser && lastUser.userId ? lastUser.userId + 1 : 1;
+    doc.userId = newId;
   }
   next();
 });
-
 /**
  * Hide properties of Mongoose User object.
  */
@@ -34,8 +29,8 @@ userSchema.methods.toJSON = function() {
   const userObject = user.toObject();
   delete userObject.updatedAt;
   delete userObject.__v;
-  delete userObject.personelId;
   delete userObject.tokens;
+  delete userObject._id;
 
   return userObject;
 };

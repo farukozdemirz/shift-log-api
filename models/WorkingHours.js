@@ -4,16 +4,12 @@ const { Schema } = mongoose;
 
 const workHoursSchema = Schema(
   {
-    personelId: {
-      type: String,
-      ref: 'User',
-      required: true,
-    },
     checkInTime: { type: String, required: false },
     checkOutTime: { type: String, required: false },
     workingHours: { type: String, required: false },
     dayNameString: { type: String, required: false },
     date: { type: String, required: false },
+    userId: { type: Number, ref: 'User', required: true },
   },
   { timestamps: true }
 );
@@ -26,7 +22,7 @@ workHoursSchema.methods.toJSON = function() {
   const workingHoursObject = workingHours.toObject();
   delete workingHoursObject.updatedAt;
   delete workingHoursObject.__v;
-  delete workingHoursObject.personelId;
+  delete workingHoursObject.userId;
 
   return workingHoursObject;
 };

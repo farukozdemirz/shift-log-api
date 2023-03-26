@@ -10,7 +10,7 @@ class WorkHoursController {
   async execute() {
     try {
       const getWorkingHour = await WorkingHours.findOne({
-        personelId: this.user.personelId,
+        userId: this.user.userId,
       }).sort('-date');
       const actionType = getWorkingHour ? 'update' : 'create';
       const actions = {
@@ -27,7 +27,7 @@ class WorkHoursController {
     try {
       workingHour.forEach(async data => {
         const hour = new WorkingHours({
-          personelId: this.user.personelId,
+          userId: this.user.userId,
           checkInTime: data.checkIn,
           checkOutTime: data.checkOut,
           workingHours: data.workingHour,
