@@ -1,7 +1,9 @@
 const router = require('express').Router();
-const User = require('../../models/User');
 const auth = require('../../config/auth');
-const ArgeHelper = require('./ArgeHelper');
+const AuthService = require('../../src/Service/AuthService');
+const ArgeHelper = require('../../src/Helper/ArgeHelper');
+const AuthController = require('../../src/Controller/AuthController');
+const WorkHoursController = require('../../src/Controller/WorkHoursController');
 
 /**
  * @route   POST /auth/login
@@ -9,30 +11,11 @@ const ArgeHelper = require('./ArgeHelper');
  * @access  Public
  */
 
-const setUserAndToken = async body => {
-  try {
-    let user = await User.findByCredentials(body.email);
-    if (!user) {
-      user = new User(body);
-      await user.save();
-    }
-    ArgeHelper.setUser(user);
-    const token = await user.generateAuthToken();
-    return { user, token };
-  } catch (error) {
-    throw new Error(error.message);
-  }
-};
-
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
-    // get token from arge portal
-    const tokenInfo = await ArgeHelper.getTokenInfo(email);
-    // login to arge portal
-    const argeLogin = await ArgeHelper.argePortalLogin(email, password, tokenInfo);
-    // check if user is valid
-    const errorMessage = ArgeHelper.checkUserErrorMessage(argeLogin);
+    const loginResponse = await AuthService.login(email, password);
+    const errorMessage = ArgeHelper.checkUserErrorMessage(loginResponse);
 
     const response = {
       status: true,
@@ -40,16 +23,16 @@ router.post('/login', async (req, res) => {
     };
 
     if (errorMessage) {
-      // if user is not valid, send error message
       response.status = false;
       response.message = decodeURIComponent(errorMessage);
       res.status(400).send(response);
       return;
     }
     // if user is valid, save user to db and generate token
-    const userActions = await setUserAndToken(req.body);
-    await ArgeHelper.checkWorkingHour(userActions.user);
-    res.status(200).send(userActions);
+    const user = await AuthController.setUserAndToken(req.body);
+    const workHours = new WorkHoursController(user.user);
+    await workHours.execute();
+    res.status(200).send(user);
   } catch (error) {
     res.status(400).send(error.message);
   }
@@ -61,14 +44,8 @@ router.post('/login', async (req, res) => {
  * @access  Private
  */
 router.post('/logout', async (req, res) => {
-  const { user } = req;
   try {
-    // user.tokens = user.tokens.filter(token => {
-    //   return token.token !== req.token;
-    // });
-    // await user.save();
-    // console.log('1234', 1234)
-    ArgeHelper.Logout();
+    AuthService.logout();
     res.send({ message: 'You have successfully logged out!' });
   } catch (e) {
     res.status(400).send(e);

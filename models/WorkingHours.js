@@ -12,7 +12,7 @@ const workHoursSchema = Schema(
     checkInTime: { type: String, required: false },
     checkOutTime: { type: String, required: false },
     workingHours: { type: String, required: false },
-    day: { type: String, required: false },
+    dayNameString: { type: String, required: false },
     date: { type: String, required: false },
   },
   { timestamps: true }
