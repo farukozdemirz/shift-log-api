@@ -5,7 +5,10 @@ const ArgeRequest = require('../../src/ArgeRequest.js');
 class AuthService extends ArgeRequest {
   static async getCsrfToken() {
     try {
-      const browser = await puppeteer.launch();
+      const browser = await puppeteer.launch({
+        args: ['--no-sandbox'],
+        headless: true,
+      });
       const page = await browser.newPage();
 
       await page.goto(process.env.API_URL);

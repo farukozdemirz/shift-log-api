@@ -29,7 +29,7 @@ app.use((req, res, next) => {
 // Here we define the api routes
 app.use(routes);
 
-const port = process.env.PORT || 8080;
+const port = process.env.PORT || 3000;
 const address = process.env.SERVER_ADDRESS || 'localhost';
 
 app.get('/', (req, res) => res.send('Hello World!'));
