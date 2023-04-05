@@ -1,6 +1,6 @@
 const router = require('express').Router();
-const WorkingHours = require('../../models/WorkingHours');
 const auth = require('../../config/auth');
+const { WorkingHours } = require('../../models/WorkingHours');
 
 /**
  * @route   GET /workingHours/get

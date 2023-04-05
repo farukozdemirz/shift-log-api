@@ -52,41 +52,33 @@ class ArgeHelper {
   }
 
   static formatDateObject(workingHoursData) {
-    const optimizeData = {
-      checkIn: {},
-      checkOut: {},
-    };
-    workingHoursData.forEach(element => {
-      const date = element.cell[5].split('T')[0];
-      const time = element.cell[5];
-      const type = element.cell[6];
+    const FULL_DATE_INDEX = 5;
+    const DATE_INDEX = 0;
+    const TIME_INDEX = 1;
+    const TYPE_INDEX = 6;
+    return Object.values(
+      workingHoursData.reduce((acc, current) => {
+        const splittedDate = current.cell[FULL_DATE_INDEX].split('T');
+        const date = splittedDate[DATE_INDEX];
+        const time = splittedDate[TIME_INDEX];
+        const type = current.cell[TYPE_INDEX];
+        const options = { weekday: 'long' };
+        const dayName = new Date(date).toLocaleDateString('tr-TR', options);
 
-      const checkType = {
-        G: 'checkIn',
-        C: 'checkOut',
-      }[type];
-
-      if ((type === 'G' && !optimizeData.checkIn[date]) || type === 'C') {
-        optimizeData[checkType][date] = time;
-      }
-    });
-
-    const gecisler = Object.entries(optimizeData.checkIn).map(([date, checkIn]) => {
-      const checkoutDate = optimizeData.checkOut[date];
-      const checkInDate = optimizeData.checkIn[date];
-      const checkout =
-        checkoutDate || this.convertCheckinToCheckOut(optimizeData, workingHoursData, date);
-      const options = { weekday: 'long' };
-      const dayName = new Date(date).toLocaleDateString('tr-TR', options);
-      return {
-        date,
-        dayNameString: dayName,
-        checkIn: checkIn.split('T')[1],
-        checkOut: checkout.split('T')[1],
-        workingHour: this.calculateWorkingHours(checkInDate, optimizeData.checkOut[date]),
-      };
-    });
-    return gecisler;
+        if (!acc[date]) {
+          acc[date] = {
+            date,
+            dayNameString: dayName,
+            entries: [],
+          };
+        }
+        acc[date].entries.push({
+          type,
+          time,
+        });
+        return acc;
+      }, {})
+    );
   }
 }
 
