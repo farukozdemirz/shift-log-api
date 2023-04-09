@@ -14,6 +14,7 @@ const WorkHoursController = require('../../src/Controller/WorkHoursController');
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
+
     const loginResponse = await AuthService.login(email, password);
     const errorMessage = ArgeHelper.checkUserErrorMessage(loginResponse);
 

@@ -18,20 +18,27 @@ class AuthService extends ArgeRequest {
         return input && input.value !== '';
       });
 
+      const cookies = await page.cookies();
       const value = await page.$eval(`input[name="tokeninfo"]`, el => el.value);
       await browser.close();
-      return value;
+
+      return {
+        tokenInfo: value,
+        sessionId: cookies[0].value,
+      };
     } catch (error) {
       throw new Error(error.message);
     }
   }
 
-  static async login(email, password) {
+  static async login(Email, Sifre) {
     try {
+      const { tokenInfo, sessionId } = await this.getCsrfToken();
       const requestBody = {
-        Email: email,
-        Sifre: password,
-        tokenInfo: await this.getCsrfToken(),
+        Email,
+        Sifre,
+        tokenInfo,
+        sessionId,
       };
       return this.post('/Account/LogOn', requestBody);
     } catch (error) {

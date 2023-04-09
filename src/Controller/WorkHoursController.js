@@ -1,4 +1,3 @@
-const moment = require('moment');
 const { WorkingHours, WorkingEntry } = require('../../models/WorkingHours');
 const ArgeHelper = require('../Helper/ArgeHelper');
 const WorkHoursService = require('../Service/WorkHoursService');
@@ -20,7 +19,47 @@ class WorkHoursController {
         create: this.setAllWorkingHour,
         update: this.setMissingWorkingHour,
       };
-      actions[actionType](this, getWorkingHour);
+      return actions[actionType](this, getWorkingHour);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  }
+
+  async updateWorkingHourToDb(workingHour) {
+    try {
+      const bulkOps = workingHour.map(data => {
+        const entries = data.entries.map(entry => {
+          const workingEntry = new WorkingEntry({
+            type: entry.type,
+            time: entry.time,
+          });
+          return workingEntry.save();
+        });
+
+        return Promise.all(entries).then(workingEntryIds => {
+          return {
+            userId: this.user.userId,
+            date: data.date,
+            dayNameString: data.dayNameString,
+            entries: workingEntryIds,
+          };
+        });
+      });
+
+      const hours = await Promise.all(bulkOps);
+
+      const updateOps = hours.map(hour => ({
+        updateOne: {
+          filter: { userId: hour.userId, date: hour.date },
+          update: {
+            $set: {
+              entries: hour.entries,
+            },
+          },
+          upsert: true,
+        },
+      }));
+      await WorkingHours.bulkWrite(updateOps);
     } catch (error) {
       throw new Error(error.message);
     }
@@ -69,29 +108,10 @@ class WorkHoursController {
     }
   }
 
-  async setMissingWorkingHour(self, workingHours) {
+  async setMissingWorkingHour(self) {
+    // this is workaround for missing working hours
     const lastWorkingHours = await WorkHoursService.getWorkingHours(process.env.Donem_Id);
-    const missingWorkingHours = lastWorkingHours.filter(
-      item => new Date(item.date) > new Date(workingHours.date)
-    );
-    if (missingWorkingHours.length > 0) {
-      self.setWorkingHourToDb(missingWorkingHours);
-    } else {
-      const recordOfLastDayFromArge = lastWorkingHours.reduce((acc, curr) => {
-        return new Date(curr.date) > new Date(acc.date) ? curr : acc;
-      });
-      const times = workingHours.entries.map(obj => moment(obj.time, 'HH:mm:ss'));
-      const maxTime = moment.max(times).format('HH:mm:ss');
-      const getNewRecords = recordOfLastDayFromArge.entries.filter(item =>
-        moment(item.time, 'HH:mm:ss').isAfter(moment(maxTime, 'HH:mm:ss'))
-      );
-      if (getNewRecords.length > 0) {
-        const newWorkingEntries = getNewRecords.map(entry => new WorkingEntry(entry));
-        const savedEntries = await WorkingEntry.insertMany(newWorkingEntries);
-        workingHours.entries.push(...savedEntries);
-        await workingHours.save();
-      }
-    }
+    self.updateWorkingHourToDb(lastWorkingHours);
   }
 }
 

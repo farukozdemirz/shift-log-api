@@ -16,7 +16,9 @@ router.post('/get', auth, async (req, res) => {
         $lte: end,
       },
       userId: req.user.userId,
-    }).sort('date');
+    })
+      .populate('entries')
+      .sort('date');
     return res.send(getWorkingHour);
   } catch (e) {
     return res.status(400).send(e.message);
