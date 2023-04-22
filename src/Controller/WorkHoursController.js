@@ -95,8 +95,13 @@ class WorkHoursController {
 
   async setAllWorkingHour(self) {
     try {
-      const donemData = ArgeHelper.range(1269, 1272); // range will be used
-      const promises = donemData.map(donem => WorkHoursService.getWorkingHours(donem));
+      const donemData = ArgeHelper.range(); // range will be used
+      const promises = donemData.map(donem =>
+        WorkHoursService.getWorkingHours(donem, {
+          sessionId: self.user.sessionId,
+          personelId: self.user.personelId,
+        })
+      );
       const results = await Promise.all(promises);
       const workingHour = results.reduce((acc, cur) => {
         acc.push(...cur);
@@ -110,7 +115,10 @@ class WorkHoursController {
 
   async setMissingWorkingHour(self) {
     // this is workaround for missing working hours
-    const lastWorkingHours = await WorkHoursService.getWorkingHours(process.env.Donem_Id);
+    const lastWorkingHours = await WorkHoursService.getWorkingHours(process.env.Donem_Id, {
+      sessionId: self.user.sessionId,
+      personelId: self.user.personelId,
+    });
     self.updateWorkingHourToDb(lastWorkingHours);
   }
 }

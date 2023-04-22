@@ -4,7 +4,7 @@ const ArgeRequest = require('../ArgeRequest');
 const ArgeHelper = require('../Helper/ArgeHelper');
 
 class WorkHoursService extends ArgeRequest {
-  static async getWorkingHours(donem) {
+  static async getWorkingHours(donem, userData) {
     try {
       const requestBody = {
         page: 1,
@@ -17,11 +17,12 @@ class WorkHoursService extends ArgeRequest {
         string_Firma_Id: process.env.string_Firma_Id,
         undefined: 'Firma_Id,Donem_Id,Personel_Id',
         Donem_Id: donem,
-        Personel_Id: process.env.Personel_Id,
+        Personel_Id: userData.personelId,
       };
       const response = await this.post(
         '/Personel/PersonelGirisCikis/PersonelPdksGirisCikisListe',
-        requestBody
+        requestBody,
+        userData.sessionId
       );
       return ArgeHelper.formatDateObject(response.data.rows);
     } catch (error) {

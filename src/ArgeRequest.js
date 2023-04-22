@@ -3,7 +3,7 @@ const axios = require('axios');
 const FormData = require('form-data');
 
 class ArgeRequest {
-  static async post(path, data) {
+  static async post(path, data, sessionId) {
     const url = `${process.env.API_URL}${path}`;
     try {
       const formData = new FormData();
@@ -16,7 +16,7 @@ class ArgeRequest {
         method: 'post',
         url: url,
         headers: {
-          Cookie: process.env.SESSION,
+          Cookie: `ASP.NET_SessionId=${sessionId}`,
           ...formData.getHeaders(),
         },
         data: formData,

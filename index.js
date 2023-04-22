@@ -1,6 +1,7 @@
 const express = require('express');
 const logger = require('morgan');
 const dotenv = require('dotenv');
+const session = require('express-session');
 const expressStatusMonitor = require('express-status-monitor');
 const connectDB = require('./config/mongoose');
 const routes = require('./routes');
@@ -26,9 +27,15 @@ app.use((req, res, next) => {
   next();
 });
 
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET,
+    resave: false,
+    saveUninitialized: true,
+  })
+);
 // Here we define the api routes
 app.use(routes);
-
 const port = process.env.PORT || 3000;
 const address = process.env.SERVER_ADDRESS || 'localhost';
 

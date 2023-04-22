@@ -1,8 +1,26 @@
 /* eslint-disable no-undef */
 const puppeteer = require('puppeteer');
 const ArgeRequest = require('../../src/ArgeRequest.js');
+const ArgeHelper = require('../Helper/ArgeHelper.js');
 
 class AuthService extends ArgeRequest {
+  static async getArgePersonelId(sessionId) {
+    const requestBody = {
+      Donem_Id: Math.max(...ArgeHelper.range(1269, 1272)),
+      Firma_Id: process.env.Firma_Id,
+    };
+    try {
+      const response = await this.post(
+        '/PersonelSabit/PersonelPDKSDonemdeCalisanPersonelListesi',
+        requestBody,
+        sessionId
+      );
+      return response.data[0].id;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  }
+
   static async getCsrfToken() {
     try {
       const browser = await puppeteer.launch({
@@ -31,23 +49,21 @@ class AuthService extends ArgeRequest {
     }
   }
 
-  static async login(Email, Sifre) {
+  static async login(Email, Sifre, tokenInfo, sessionId) {
     try {
-      const { tokenInfo, sessionId } = await this.getCsrfToken();
       const requestBody = {
         Email,
         Sifre,
         tokenInfo,
-        sessionId,
       };
-      return this.post('/Account/LogOn', requestBody);
+      return this.post('/Account/LogOn', requestBody, sessionId);
     } catch (error) {
       throw new Error(error.message);
     }
   }
 
-  static async logout() {
-    return this.post('/Home/Logout', {});
+  static async logout(sessionId) {
+    return this.post('/Home/Logout', {}, sessionId);
   }
 }
 

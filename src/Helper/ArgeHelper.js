@@ -13,7 +13,7 @@ class ArgeHelper {
     return false;
   }
 
-  static range(start, end) {
+  static range(start = 1269, end = 1272) {
     return Array(end - start + 1)
       .fill()
       .map((_, idx) => start + idx);
